@@ -9,19 +9,21 @@ from truck import Truck
 packages = HashTable()
 
 #Read in package Info and populate packages hashtable with
-with open('packageData.csv', newline='', encoding='utf-8-sig') as csvfile:
+with open('C950/packageData.csv', newline='', encoding='utf-8-sig') as csvfile:
         csvReader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in csvReader:
             package = Package(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
+            if package.id == "9":
+                package.delay = datetime.strptime("10:20AM", '%I:%M%p')
             packages.insert(package.id, package)
 
 #Read in file with location distance matrix as csvDistance
-with open('distance.csv', newline='', encoding='utf-8-sig') as csvfile:
+with open('C950/distance.csv', newline='', encoding='utf-8-sig') as csvfile:
     csvDistance = csv.reader(csvfile, delimiter=',')
     csvDistance = list(csvDistance)
 
 #Read in file with location names as csvDistanceNames
-with open('distance_names.csv', newline='', encoding='utf-8-sig') as csvfile:
+with open('C950/distance_names.csv', newline='', encoding='utf-8-sig') as csvfile:
     csvDistanceNames = csv.reader(csvfile, delimiter=',')
     csvDistanceNames = list(csvDistanceNames)
 
@@ -67,12 +69,12 @@ def coordToAddress(target):
 
 
 # Create truck objects with packageID's assigned to trucks and departure times. Truck 1 driver will drive Truck 3 when returned. 
-Truck1 = Truck(1, '8:00AM', [12,13,14,15,16,20,21,24,34])
-Truck2 = Truck(2, '8:00AM', [1,2,3,4,5,7,11,17,18,22,23,29,31,33,36,37,38,40])
-Truck3 = Truck(3, '8:34AM', [6,8,9,10,19,22,25,26,27,28,30,32,35,39])
 
 
-def deliverPackages(truck):
+def deliverPackages(truck, time=None):
+    Truck1 = Truck(1, '8:00AM', [12,13,14,15,16,20,21,22,24,34])
+    Truck2 = Truck(2, '8:00AM', [1,3,4,5,7,9,11,17,18,23,29,33,36,37,38,40])
+    Truck3 = Truck(3, '9:05AM', [2,6,8,10,19,22,25,26,27,28,30,31,32,33,35,39])
     #Create array of package objects
     packagesOnTruck = []
     #Create list of addresses to visit which can be distanced out using GetDistance Function
@@ -92,11 +94,15 @@ def deliverPackages(truck):
             addressesToVisit.append(p.address)
     #Deliver packages
     while addressesToVisit != []:
+        if currentTime < datetime.strptime("10:20AM", '%I:%M%p'):
+            packages.search(9).address == '410 S State St'
         #Distance once again a placeholder value, if 1000+ would need to be changed. 
         nextStop = 999
 
         #O(N) loop over array
         for p  in addressesToVisit:
+            if any(pa.address == p and pa.delay and currentTime < pa.delay for pa in packagesOnTruck):
+                continue
             dist = float(getDistance( int(nameToCoord(truck.currentAddress)), int(nameToCoord(p)) ))
             #Distance of 0 is self and would always be best option. 
             if dist < nextStop and dist != 0:
@@ -109,14 +115,13 @@ def deliverPackages(truck):
         #Convert decimal to time and add time to dime elapsed
         currentTime += timedelta(minutes=travelTime)
         currentTime = currentTime.replace(microsecond=0)
-        print("Packages delivered at:" + str(currentTime.time()))
+        #print("Packages delivered at:" + str(currentTime.time()))
 
         #O(N) loop over array
         to_remove = []
         for pack in packagesOnTruck:
             if truck.currentAddress == pack.address:
                 #Set package object status to delivered
-                print(pack.id)
                 packageStatus = packages.search(pack.id)
                 packageStatus.status = "Delivered at " + str(currentTime.time())
                 #Queue to be removed
@@ -135,12 +140,47 @@ def deliverPackages(truck):
     currentTime += timedelta(minutes=float(travelTime))
     currentTime = currentTime.replace(microsecond=0)
 
-    print("Depot Time: " + str(currentTime.time()))
-    print("Total distance: " + str(truck.distanceTraveled))
+    #print("Depot Time: " + str(currentTime.time()))
+    #print("Total distance: " + str(truck.distanceTraveled))
 
+def userInterface():
+    print('========')
+    print('Welcome!')
+    print('========')
+    userChoice = int(input("Would you like to :\n Get Truck Information: 1\n Get Package Info?: 2 \n"))
+    if userChoice == 1:
+        truckInput = int(input("Which Truck would you like information on?:\nTruck 1: 1\nTruck 2: 2\nTruck 3: 3\n All Trucks: 4\n Know a trucks position at a given time?: 5 "))
+        if truckInput == 1:
+            deliverPackages(1)
+        if truckInput == 2:
+            deliverPackages(2)
+        if truckInput == 3:
+            deliverPackages(3)
+        if truckInput == 4:
+            deliverPackages(1)
+            deliverPackages(2)
+            deliverPackages(3)
+        if truckInput == 5:
+            truckID = int(input("Which Truck?\n"))
+            #Convert this to a time object either here or in function.
+            truckTime = input("Which time (HH:MM(AM/PM) Format)\n")
+    if userChoice == 2:
+        print('2')
+        
+
+
+'''
+DeliverBy10 = [1,6,13,14,15,16,20,25,29,30,31,34,37,40]
 print("Truck 1")
 deliverPackages(Truck1)
 print("Truck 2")
 deliverPackages(Truck2)
 print("Truck 3")
 deliverPackages(Truck3)
+
+for p in DeliverBy10:
+    package = packages.search(p)
+    print(package.id + " " + package.status)
+'''
+
+userInterface()

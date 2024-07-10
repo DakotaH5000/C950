@@ -1,5 +1,5 @@
 class HashTable:
-  
+  #Part A requirements
    
     # Constructor with optional initial capacity parameter.
     # Assigns all buckets with an empty list.
@@ -27,10 +27,6 @@ class HashTable:
                 return item
         # The key is not found
         return None
-
- 
-        
-        
 
     def remove(self, key):
         bucket = int(key) % len(self.table)
