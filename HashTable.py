@@ -16,8 +16,6 @@ class HashTable:
         bucket_list = self.table[bucket]
         bucket_list.append(item)
     
-  
-  
     def search(self, key):
         bucket = int(key) % len(self.table)
         bucket_list = self.table[bucket]

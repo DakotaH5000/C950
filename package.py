@@ -9,7 +9,7 @@ class Package:
         self.weight = weight
         self.specialInstructions = specialInstructions if specialInstructions is not None else ""
         self.delay = None
-        self.status = 'Not Delivered'
+        self.status = 'At Depot'
         self.loadedOnTruck = False
         self.enrouteTime = None
         self.deliveredTime = None
@@ -17,7 +17,6 @@ class Package:
     def __str__(self):
         return (f"Address: {self.address}\n"
                 f"City: {self.city}\n"
-                f"State: {self.state}\n"
                 f"Zip: {self.zip}\n"
                 f"Time Requirements: {self.timeRequirements}\n"
                 f"Weight: {self.weight} lbs\n"
