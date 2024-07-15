@@ -15,9 +15,11 @@ class Package:
         self.deliveredTime = None
     #Part B requirements
     def __str__(self):
-        return (f"Address: {self.address}\n"
-                f"City: {self.city}\n"
-                f"Zip: {self.zip}\n"
-                f"Time Requirements: {self.timeRequirements}\n"
-                f"Weight: {self.weight} lbs\n"
+        return (f"Package ID: {self.id} "
+                f"Address: {self.address} "
+                f"City: {self.city} "
+                f"State: {self.state} "
+                f"Zip: {self.zip} "
+                f"Deadline: {self.timeRequirements} "
+                f"Weight: {self.weight} lbs "
                 f"Status: {self.status}")

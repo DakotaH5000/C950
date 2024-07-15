@@ -9,7 +9,7 @@ from truck import Truck
 packages = HashTable()
 
 #Read in package Info and populate packages hashtable with
-with open('C950/packageData.csv', newline='', encoding='utf-8-sig') as csvfile:
+with open('./packageData.csv', newline='', encoding='utf-8-sig') as csvfile:
         packagesCSV = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in packagesCSV:
             package = Package(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
@@ -18,12 +18,12 @@ with open('C950/packageData.csv', newline='', encoding='utf-8-sig') as csvfile:
             packages.insert(package.id, package)
 
 #Read in file with location distance matrix as csvDistance
-with open('C950/distance.csv', newline='', encoding='utf-8-sig') as csvfile:
+with open('./distance.csv', newline='', encoding='utf-8-sig') as csvfile:
     csvDistance = csv.reader(csvfile, delimiter=',')
     csvDistance = list(csvDistance)
 
-#Read in file with location names as csvDistanceNames
-with open('C950/distance_names.csv', newline='', encoding='utf-8-sig') as csvfile:
+#Read in file with location names as csvDistanceNames table is the heading of each row in the distance.csv file 0 indexed. 
+with open('./distance_names.csv', newline='', encoding='utf-8-sig') as csvfile:
     csvDistanceNames = csv.reader(csvfile, delimiter=',')
     csvDistanceNames = list(csvDistanceNames)
 
@@ -69,24 +69,35 @@ def isValidTimeFormat(time, timeFormat = '%I:%M%p'):
     except:
         return False
 
+def isIntDataType(val):
+    try:
+        val = int(val)
+        return val
+    except:
+        return "Invalid input"
+    
 # Create truck objects with packageID's assigned to trucks and departure times. \Truck 1 driver will end up driving truck 3.
-Truck1 = Truck(1, '8:00AM', [12,13,14,15,16,20,21,22,24,34])
-Truck2 = Truck(2, '8:00AM', [1,3,4,5,7,9,11,17,18,23,29,33,36,37,38,40])
-Truck3 = Truck(3, '9:05AM', [2,6,8,10,19,22,25,26,27,28,30,31,32,33,35,39])
+Truck1 = Truck(1, '8:00AM', [12,14,15,16,20,21,22,24,34])
+Truck2 = Truck(2, '8:00AM', [1,3,4,5,7,11,13,17,18,23,29,30,36,37,38,40])
+Truck3 = Truck(3, '9:41AM', [2,6,8,9,10,19,25,26,27,28,31,32,33,35,39])
 #Function contains data to output any data requested for a truck or packet object at a given time. 
-def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = False, truckFunction = False, packageFunction = False):
+inorderPrinting = []
+def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = False, truckFunction = False, packageFunction = False, allPackagesTime = False):
     #Reset Truck info each iteration
     truck.distanceTraveled = 0
     truck.truckAtDepot = False
-    for p in packages:
-        p.status = 'At Depot'
+    packages.search(9).address = '300 State St'
+    for p in truck.packagesOnTruck:
+        pa = packages.search(p)
+        pa.status = 'At Hub'
     if truck.TruckID == 1:
         truck.packagesOnBoard = [12,13,14,15,16,20,21,22,24,34]
     if truck.TruckID == 2:
-        truck.packagesOnBoard = [1,3,4,5,7,9,11,17,18,23,29,33,36,37,38,40]
+        truck.packagesOnBoard = [1,3,4,5,7,11,13,17,18,23,29,36,37,38,40]
     if truck.TruckID == 3:
-        truck.packagesOnBoard = [2,6,8,10,19,22,25,26,27,28,30,31,32,33,35,39]
+        truck.packagesOnBoard = [2,6,8,9,10,19,25,26,27,28,30,31,32,33,35,39]
     
+
 
     #Create array of package objects
     packagesOnTruck = []
@@ -95,6 +106,13 @@ def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = 
     if time == None:
         print("Departure Time: " + str(truck.truckDepartureTime))
     currentTime = datetime.strptime(truck.truckDepartureTime, '%I:%M%p')
+    if allPackagesTime:
+            if datetime.strptime(str(time), '%I:%M%p') <= currentTime:
+                for p in truck.packagesOnTruck:
+                    pa = packages.search(p)
+                    print(pa)
+                print("Total distance as of current time = " + str(Truck1.distanceTraveled + Truck2.distanceTraveled + Truck3.distanceTraveled))
+                return
     
 
     #Load packages from ID placed in array to object 
@@ -109,15 +127,20 @@ def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = 
 
         if datetime.strptime(truck.truckDepartureTime, '%I:%M%p') >= currentTime:
             for pac in packagesOnTruck:
-                pac.status = 'En Route'
+                pac.status = 'En Route on truck ' + str(truck.TruckID)
 #START OF WHILE LOOP
 #START OF WHILE LOOP
 #START OF WHILE LOOP, function will execute while a package remains on truck. 
+    firstPackageNotTeleporting = False
+    issueDiscovered = False
     while addressesToVisit != []:
 
 #Change package 9 delivery address when error is discoved
         if currentTime > datetime.strptime("10:20AM", '%I:%M%p'):
             packages.search(9).address = '410 S State St'
+            if truck.TruckID == 3 and not issueDiscovered:
+                issueDiscovered = True
+                addressesToVisit.append('410 S State St')
 
 #Distance once again a placeholder value, if 1000+ would need to be changed. 
         nextStop = 999
@@ -130,18 +153,42 @@ def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = 
 #Distance of 0 is self and would always be best option. 
             if dist < nextStop and dist != 0:
                 nextStop = dist
-                truck.currentAddress= p
+                truck.currentAddress = p
         
+        if not firstPackageNotTeleporting:
+            travelTime  = (truck.speed / float( getDistance (int(nameToCoord(truck.currentAddress)), int(nameToCoord('4001 South 700 East')))))
+            currentTime += timedelta(minutes=float(travelTime))
+            currentTime = currentTime.replace(microsecond=0)
+            firstPackageNotTeleporting = True
+
         truck.distanceTraveled += nextStop
+
+        if allPackagesTime:
+            if datetime.strptime(str(time), '%I:%M%p') <= currentTime:
+                for p in truck.packagesOnTruck:
+                    pa = packages.search(p)
+                    print(pa)
+                print("Total distance as of current time = " + str(Truck1.distanceTraveled + Truck2.distanceTraveled + Truck3.distanceTraveled))
+                return
 #Next stop is a distance, speed/distance = time Traveled which will be a decimal 0-99, must be converted to seconds
-        travelTime =  round(truck.speed/nextStop, 2)
+        travelTime =  round((nextStop/truck.speed) * 60, 2)
 #Convert decimal to time and add time to dime elapsed
         currentTime += timedelta(minutes=travelTime)
         currentTime = currentTime.replace(microsecond=0)
+        
+
+        if allPackagesTime:
+            if datetime.strptime(str(time), '%I:%M%p') <= currentTime:
+                for p in truck.packagesOnTruck:
+                    pa = packages.search(p)
+                    print(pa)
+                print("Total distance as of current time = " + str(Truck1.distanceTraveled + Truck2.distanceTraveled + Truck3.distanceTraveled))
+                return
+
 #Find trucks location at a given time
         if time != None and truckFunction:
             if datetime.strptime(time, '%I:%M%p') < datetime.strptime(truck.truckDepartureTime, '%I:%M%p') and currentTime > datetime.strptime(time, '%I:%M%p'):
-                print("Truck " + str(truck.TruckID) + " was awaiting loading and departure at the depot at " + time)
+                print("Truck " + str(truck.TruckID) + " was awaiting loading and departure at the hub at " + time)
                 break
             if (time == currentTime) and truckFunction:
                 print("Truck " + truck.id + " was at " + truck.currentAddress  + " at " + truck.currentAddress)
@@ -153,7 +200,7 @@ def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = 
                 
                 break
             if truck.truckAtDepot:
-                print("Truck " + str(truck.TruckID) + " returned to depot at "  + str(truck.depotTime) + '.')
+                print("Truck " + str(truck.TruckID) + " returned to hub at "  + str(truck.depotTime) + '.')
                 break
 
 
@@ -163,34 +210,37 @@ def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = 
             if truck.currentAddress == pack.address:
                 #Set package object status to delivered
                 packageStatus = packages.search(pack.id)
-                packageStatus.status = "Delivered at " + str(currentTime.time())
+                packageStatus.status = "Delivered at " + str(currentTime.time()) + " by " + "truck " +str(truck.TruckID)
                 if targetPackageID == int(packageStatus.id) and not packageFunction:
                     print(packageStatus)
                 #Queue to be removed
                 to_remove.append(pack)
 
-#Handle looking up package by time Package can be At depot prior to start of day, on truck, delayed on plane, en route or delivered.
-        if time != None and packageTracking == True and packageFunction: 
+#Handle looking up package by time Package can be At hub prior to start of day, on truck, delayed on plane, en route or delivered.
+        if time != None and packageTracking == True and packageFunction and targetPackageID in truck.packagesOnBoard: 
             if datetime.strptime(str(time), '%I:%M%p') >= currentTime:
                 packageStatus = packages.search(targetPackageID).status
+                #If delivered print delivered
                 if 'Delivered' in packageStatus and packageFunction:
-                    print("Package " + str(truck.TruckID) + " already delivered at " + time + ", package was " + packageStatus.lower())
+                    print("Package " + str(str(targetPackageID)) + " already delivered at " + time + ", package was " + packageStatus.lower())
                     break
-            elif  datetime.strptime(str(truck.truckDepartureTime), '%I:%M%p') > datetime.strptime(str(time), '%I:%M%p'):
-                if int(packages.search(targetPackageID).id) in [6,25,28,32,]:
-                    print('Package ' + str(packages.search(targetPackageID).id) + ' delayed at airport, awaiting arrival at depot.')
-                    break
-                else:
-                    print("Package at depot, awaiting truck departure at " + truck.truckDepartureTime + ".")
-                    break
+            elif  datetime.strptime(str('9:05AM'), '%I:%M%p') < datetime.strptime(str(time), '%I:%M%p') and datetime.strptime(str(time.strip()), '%I:%M%p') < datetime.strptime(str(truck.truckDepartureTime.strip()), '%I:%M%p'):
+                print("Package " + str(targetPackageID) + " was on truck awaiting a driver for departure at " + time + ".")
+                break
             elif datetime.strptime(str(time), '%I:%M%p') < currentTime:
                 print("Package " + str(packages.search(targetPackageID).id) + ' enroute at ' + time)
                 break
+            elif  datetime.strptime(str('9:05AM'), '%I:%M%p') > datetime.strptime(str(time), '%I:%M%p'):
+                if int(packages.search(targetPackageID).id) in [6,25,28,32,]:
+                    print('Package ' + str(packages.search(targetPackageID).id) + ' delayed at airport, awaiting arrival at Hub.')
+                    break
+                else:
+                    print("Package at Hub, awaiting truck departure at " + truck.truckDepartureTime + ".")
+                    break
             else:
                 packageStatus = packages.search(targetPackageID).status
                 print("Package " + str(targetPackageID) + " was " + packageStatus + " at " + time)
                 break
-
         #O(N) operation where N= to_remove length, should however occur for every item in initial packagesOnTruck  
         #Remove From Truck
         for pack in to_remove:
@@ -200,98 +250,93 @@ def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = 
     if time == None:
         print("All packages delivered by " + str(currentTime.time()))
     if truckFunction and datetime.strptime(time, '%I:%M%p') > currentTime:
-        print("Truck "+str(truck.TruckID) + " had returned to depot by " + time)
-    #Return to depot time/distance of truck
+        print("Truck "+str(truck.TruckID) + " had returned to Hub by " + time)
+    #Return to Hub time/distance of truck
     truck.distanceTraveled += float(getDistance(int(nameToCoord(truck.currentAddress)), 0))
-    travelTime = getDistance(int(nameToCoord(truck.currentAddress)), 0)
+    travelTime = truck.speed / float(getDistance(int(nameToCoord(truck.currentAddress)), 0))
     currentTime += timedelta(minutes=float(travelTime))
     currentTime = currentTime.replace(microsecond=0)
     truck.truckAtDepot = True
 
     
     if time == None:
-        print("Depot Time: " + str(currentTime.time()))
-        print("Total distance: " + str(truck.distanceTraveled) + " miles")
+        print("Hub Time: " + str(currentTime.time()))
+        print("Total distance: " + str(round(truck.distanceTraveled,2)) + " miles")
+    if allPackagesTime:
+        for p in truck.packagesOnTruck:
+            pa = packages.search(p)
+            print(pa)
+        print("Total distance as of current time = " + str(Truck1.distanceTraveled + Truck2.distanceTraveled + Truck3.distanceTraveled))
+        return
     #Reset distance
 
 #Defines user interface function and displays options
 #(truck, time=None, targetPackageID = None, packageTracking = False, truckFunction = False, packageFunction = False)
 def userInterface():
     while True:
-        userChoice = input("Enter a number:\n Get Truck Information: 1\n Get Package Info?: 2 \n Quit: 3\n")
-        while userChoice not in ['1','2','3']:
-            userChoice = input("INVALID INPUT: Enter a number:\n Get Truck Information: 1\n Get Package Info?: 2 \n Quit: 3\n")
-        userChoice = int(userChoice)
-        if userChoice == 1:
-                while True:
-                    truckInput = (input("\nWhich Truck would you like information on?\n Truck 1: 1\n Truck 2: 2\n Truck 3: 3\n All Trucks Distance: 4\n Know a trucks position at a given time?: 5 \n"))
-                    while truckInput not in ['0','1','2','3','4','5']:
-                        truckInput = (input("\nINVALID INPUT Which Truck would you like information on?\n Truck 1: 1\n Truck 2: 2\n Truck 3: 3\n All Trucks Distance: 4\n Know a trucks position at a given time?: 5 \n"))
-                    truckInput = int(truckInput)
-                    if truckInput == 0:
-                        break
-                    if truckInput == 1:
-                        deliverPackages(Truck1)
-                    if truckInput == 2:
-                        deliverPackages(Truck2)
-                    if truckInput == 3:
-                        deliverPackages(Truck3)
-                    if truckInput == 4:
-                        deliverPackages(Truck1, '11:59PM', None, None, False, True)
-                        deliverPackages(Truck2, '11:59PM', None, None, False, True)
-                        deliverPackages(Truck3, '11:59PM', None, None, False, True)
-                        print("Truck 1 traveled: " + str(Truck1.distanceTraveled) + "\nTruck 2 traveled: " + str(Truck2.distanceTraveled) + "\nTruck 3 traveled: " + str(Truck3.distanceTraveled))
-                        print("Trucks traveled " + str(int(Truck1.distanceTraveled) + int(Truck1.distanceTraveled) + int(Truck1.distanceTraveled)) + " miles in total")
-                    if truckInput == 5:
-                        truckID =  input("Which Truck?\n")
-                        if truckID == '0':
-                            break
-                        while (truckID) not in ['1','2','3']:
-                            truckID =  (input("Which Truck? (Enter 1/2/3)\n"))
-                        truckID = int(truckID)
-                        #Convert this to a time object either here or in function.
-                        truckTime = input("Which time (HH:MM(AM/PM) Format)\n")
-                        while "AM" not in truckTime and "PM" not in truckTime or not isValidTimeFormat(truckTime):
-                            truckTime = input("Please correctly format time (HH:MM(AM/PM) Format)\n")
-                        if truckID == 1:
-                            deliverPackages(Truck1, truckTime, truckFunction=True)
-                        if truckID == 2:
-                            deliverPackages(Truck2, truckTime, truckFunction=True)
-                        if truckID == 3:
-                            deliverPackages(Truck3, truckTime, truckFunction=True)
-        elif userChoice == 2:
-            while True:
-                packageInput = (input("Which package would you like to track? (1-40) Enter 0 to return\n"))
-                while packageInput not in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40']:
-                    packageInput = (input("Invalid input Which package would you like to track? Enter 0 to return\n"))
-                if packageInput == 0:
-                    break
-                if  1 <= int(packageInput) <= 40:
-                    packageInput = int(packageInput)
-                    packageInfoTypeInput = (input("Package Information: 1\nStatus at a given time: 2\n"))
-                    if packageInfoTypeInput not in ['1' , '2']:
-                        packageInfoTypeInput = (input("Invalid Input: Package Information: 1\nStatus at a given time: 2\n"))
-                    packageInfoTypeInput = int(packageInfoTypeInput)
-                    if packageInfoTypeInput == 1:
-                        deliverPackages(Truck1, '11:59PM', packageInput, None, False, False)
-                        deliverPackages(Truck2, '11:59PM', packageInput, None, False, False)
-                        deliverPackages(Truck3, '11:59PM', packageInput, None, False, False)
-                    if packageInfoTypeInput == 2:
-                        timeInput = input("Which time (HH:MM(AM/PM) Format)\n")
-                        while ("AM" not in timeInput and "PM" not in timeInput) or not isValidTimeFormat(timeInput):
-                            timeInput = input("Please correctly format time (HH:MM(AM/PM) Format)\n")
-                        if int(packageInput) in [12,13,14,15,16,20,21,22,24,34]:
-                            deliverPackages(Truck1, timeInput, packageInput, True, False, True)
-                        if int(packageInput) in [1,3,4,5,7,9,11,17,18,23,29,33,36,37,38,40]:
-                            deliverPackages(Truck2, timeInput, packageInput, True, False, True)
-                        if int(packageInput) in [2,6,8,10,19,25,26,27,28,30,31,32,33,35,39]:
-                            deliverPackages(Truck3, timeInput, packageInput, True, False, True)
+        userInput = input("Possible Menu Options:\n***************************************\n1. Print All Package Status and Total Mileage       \n2. Get a Single Package Status with a Time\n3. Get All Package Status with a Time\n4. Exit the Program               \n***************************************\n")
+        while userInput not in ['1','2','3','4']:
+            userInput = input("Possible Menu Options:\n***************************************\n1. Print All Package Status and Total Mileage       \n2. Get a Single Package Status with a Time\n3. Get All Package Status with a Time\n4. Exit the Program               \n***************************************\n")
+        userInput = int(userInput)
+        if userInput == 1:
+            print("\nTruck 1:")
+            deliverPackages(Truck1)
+            for p in Truck1.packagesOnTruck:
+                packe = packages.search(p)
+                print("Package " +packe.id + " " + packe.status)
+            print("\nTruck 2:")
+            deliverPackages(Truck2)
+            for p in Truck2.packagesOnTruck:
+                packe = packages.search(p)
+                print("Package " +packe.id + " " + packe.status)
+            print("\nTruck 3:")
+            deliverPackages(Truck3)
+            for p in Truck3.packagesOnTruck:
+                packe = packages.search(p)
+                print("Package " +packe.id + " " + packe.status)
+            print("Total distance = " + str(Truck1.distanceTraveled + Truck2.distanceTraveled + Truck3.distanceTraveled))
+        if userInput == 2:
+            packageInput = input("Which package would you like to track?.\n")
+            while packageInput not in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '40']:
+                packageInput = input("Which package would you like to track?.\n")
+            packageInput = int(packageInput)
+            timeInput = input("Enter a time in HH:MM(AM/PM) Format\n").upper()
+            while not isValidTimeFormat(timeInput):
+                timeInput = input("Enter a time in HH:MM(AM/PM) Format\n").upper()
+            #def deliverPackages(truck, time=None, targetPackageID = None, packageTracking = False, truckFunction = False, packageFunction = False):
+            print("At " + timeInput + " package " + str(packageInput) + " was:")
+            deliverPackages(Truck1, timeInput, packageInput, True , packageFunction=True)
+            deliverPackages(Truck2, timeInput, packageInput, True, packageFunction=True)
+            deliverPackages(Truck3, timeInput, packageInput, True, packageFunction=True)
+            try:
+                isValidTimeFormat(datetime.strptime(timeInput))
 
-        elif userChoice == 3:
+            except:
+                timeInput = ("Enter a valid time in HH:MM(AM/PM) Format\n")
+            
+        if userInput == 3:
+            timeInput = input("Enter a time in HH:MM(AM/PM) Format\n").upper()
+            try:
+                    Truck1.distanceTraveled = 0
+                    Truck2.distanceTraveled = 0
+                    Truck3.distanceTraveled = 0
+                    isValidTimeFormat(timeInput)
+                    print("At " + timeInput + " package statuses were:")
+                    deliverPackages(Truck1, timeInput, allPackagesTime=True)
+                    deliverPackages(Truck2, timeInput, allPackagesTime=True)
+                    deliverPackages(Truck3, timeInput, allPackagesTime=True)
+
+
+            except:
+                timeInput = ("INVALID INPUT: Enter a valid time in HH:MM(AM/PM) Format\n").upper()
+
+            
+        if userInput == 4:
             print("Goodbye!")
             break
-                
+
 userInterface()
+
 
 #Section F
 '''
